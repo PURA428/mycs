@@ -1,0 +1,412 @@
+:root {
+    --bg-color: #000000;
+    --border-color: #2F3336;
+    --text-main: #E7E9EA;
+    --text-muted: #71767B;
+    --primary-color: #1D9BF0;
+    --primary-hover: #1A8CD8;
+    --primary-disabled: #0f4e78;
+    --card-bg: rgba(255, 255, 255, 0.03);
+    --hover-bg: rgba(255, 255, 255, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* レイアウト */
+.app-container {
+    display: flex;
+    justify-content: center;
+    max-width: 1280px;
+    margin: 0 auto;
+    min-height: 100vh;
+}
+
+/* サイドバー */
+.sidebar {
+    width: 275px;
+    padding: 20px 20px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+.logo h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+    color: var(--text-main);
+    padding: 0 10px;
+    letter-spacing: -1px;
+}
+
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nav-item {
+    text-decoration: none;
+    color: var(--text-main);
+    font-size: 1.25rem;
+    font-weight: 500;
+    padding: 12px 20px;
+    border-radius: 9999px;
+    transition: background-color 0.2s ease;
+    display: inline-block;
+    width: fit-content;
+}
+
+.nav-item:hover {
+    background-color: var(--hover-bg);
+}
+
+.nav-item.active {
+    font-weight: 700;
+}
+
+/* メインコンテンツ */
+.main-content {
+    width: 600px;
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    min-height: 100vh;
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 15px 20px;
+    z-index: 10;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.header h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+/* 投稿フォーム */
+.post-form-container {
+    display: flex;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 15px;
+}
+
+.avatar img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.form-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#postInput {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 1.25rem;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    margin-bottom: 15px;
+    padding-top: 10px;
+    min-height: 52px;
+}
+
+#postInput::placeholder {
+    color: var(--text-muted);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    padding-top: 15px;
+    gap: 15px;
+}
+
+.char-count {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.char-count.limit {
+    color: #f4212e;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 9999px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+    background-color: var(--primary-disabled);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: not-allowed;
+}
+
+/* タイムライン */
+.post {
+    display: flex;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 15px;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.post:hover {
+    background-color: var(--card-bg);
+}
+
+.post-content {
+    flex: 1;
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.post-name {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.post-username, .post-time {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.post-text {
+    font-size: 1rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 右サイドバー */
+.right-sidebar {
+    width: 350px;
+    padding: 20px;
+}
+
+.widget {
+    background-color: #16181C;
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.widget h3 {
+    font-size: 1.25rem;
+    margin-bottom: 15px;
+}
+
+.empty-text {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ログインオーバーレイ */
+.login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.login-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.login-logo h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 5px;
+}
+
+.login-logo p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.login-form input {
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    color: var(--text-main);
+    font-size: 1rem;
+    transition: border-color 0.2s;
+    outline: none;
+}
+
+.login-form input:focus {
+    border-color: var(--primary-color);
+}
+
+.login-btn {
+    margin-top: 10px;
+    padding: 15px;
+    font-size: 1.1rem;
+    width: 100%;
+}
+
+.login-error {
+    color: #f4212e;
+    font-size: 0.9rem;
+    text-align: center;
+    min-height: 20px;
+}
+
+/* ログアウトボタンなど */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding-bottom: 20px;
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    width: 100%;
+}
+
+.btn-secondary:hover {
+    background-color: var(--hover-bg);
+}
+
+/* レスポンシブ対応 (スマホ表示用) */
+@media (max-width: 1024px) {
+    .right-sidebar {
+        display: none;
+    }
+}
+
+@media (max-width: 700px) {
+    .sidebar {
+        width: 80px;
+        align-items: center;
+    }
+    .logo h1 {
+        display: none;
+    }
+    .nav-item {
+        font-size: 0;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .nav-item::before { content: "H"; font-size: 1.2rem; }
+    .nav-item:nth-child(2)::before { content: "S"; }
+    .nav-item:nth-child(3)::before { content: "N"; }
+    .nav-item:nth-child(4)::before { content: "P"; }
+}
+
+@media (max-width: 500px) {
+    .app-container {
+        flex-direction: column-reverse;
+    }
+    .main-content {
+        width: 100%;
+        border: none;
+        padding-bottom: 60px;
+    }
+    .sidebar {
+        width: 100%;
+        height: 60px;
+        position: fixed;
+        bottom: 0;
+        top: auto;
+        flex-direction: row;
+        justify-content: space-around;
+        padding: 0;
+        background-color: var(--bg-color);
+        border-top: 1px solid var(--border-color);
+        z-index: 100;
+    }
+    .nav-menu {
+        flex-direction: row;
+        width: 100%;
+        justify-content: space-around;
+        align-items: center;
+        height: 100%;
+    }
+}

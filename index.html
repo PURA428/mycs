@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sphere - My SNS</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ログイン画面（未ログイン時に全画面表示） -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <div class="login-logo">
+                <h1>Sphere</h1>
+                <p>自分だけのクローズド空間</p>
+            </div>
+            <div class="login-form">
+                <input type="email" id="loginEmail" placeholder="メールアドレス" required>
+                <input type="password" id="loginPassword" placeholder="パスワード" required>
+                <div id="loginError" class="login-error"></div>
+                <button id="loginBtn" class="btn-primary login-btn">ログイン</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="appContainer" style="display: none;">
+        <!-- サイドバー (ナビゲーション等) -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>Sphere</h1>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active">ホーム</a>
+                <a href="#" class="nav-item">検索</a>
+                <a href="#" class="nav-item">通知</a>
+                <a href="#" class="nav-item">プロフィール</a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn-secondary logout-btn">ログアウト</button>
+            </div>
+        </aside>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <header class="header">
+                <h2>ホーム</h2>
+            </header>
+
+            <!-- 投稿フォーム -->
+            <section class="post-form-container">
+                <div class="avatar">
+                    <!-- アバター画像はプレースホルダーAPIを利用 -->
+                    <img src="https://ui-avatars.com/api/?name=User&background=random" alt="User Avatar">
+                </div>
+                <div class="form-wrapper">
+                    <textarea id="postInput" placeholder="いまどうしてる？" rows="1"></textarea>
+                    <div class="form-actions">
+                        <span class="char-count" id="charCount">0</span>
+                        <button id="postBtn" class="btn-primary" disabled>ポストする</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- タイムライン -->
+            <section id="timeline" class="timeline">
+                <!-- Javascriptで投稿がここに挿入されます -->
+            </section>
+        </main>
+        
+        <!-- 右サイドバー (トレンド等) -->
+        <aside class="right-sidebar">
+            <div class="widget">
+                <h3>おすすめトレンド</h3>
+                <p class="empty-text">ここにトレンドが表示されます</p>
+            </div>
+        </aside>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
