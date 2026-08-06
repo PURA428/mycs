@@ -141,11 +141,88 @@ body {
 
 .form-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     border-top: 1px solid var(--border-color);
     padding-top: 15px;
     gap: 15px;
+}
+
+.action-icons {
+    display: flex;
+    align-items: center;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+    background-color: rgba(29, 155, 240, 0.1);
+}
+
+.icon-svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--primary-color);
+}
+
+.submit-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* メディアプレビュー */
+.media-preview-container {
+    margin-bottom: 15px;
+}
+
+.media-preview-wrapper {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.media-preview {
+    max-width: 100%;
+    max-height: 280px;
+    border-radius: 16px;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.remove-media-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: rgba(15, 20, 25, 0.75);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    backdrop-filter: blur(4px);
+    z-index: 10;
+}
+
+.remove-media-btn:hover {
+    background-color: rgba(39, 44, 48, 0.75);
 }
 
 .char-count {
@@ -219,6 +296,22 @@ body {
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
+    margin-bottom: 10px;
+}
+
+/* タイムラインのメディア */
+.post-media-container {
+    margin-top: 10px;
+    width: 100%;
+}
+
+.post-media {
+    max-width: 100%;
+    max-height: 500px;
+    border-radius: 16px;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: block;
 }
 
 /* 右サイドバー */

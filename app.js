@@ -12,6 +12,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+const storage = firebase.storage();
 
 // Firestoreのコレクション
 const POSTS_COLLECTION = "posts";
@@ -31,7 +32,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const charCount = document.getElementById('charCount');
     const timeline = document.getElementById('timeline');
 
+    // メディア添付関連のUI要素
+    const mediaInput = document.getElementById('mediaInput');
+    const attachMediaBtn = document.getElementById('attachMediaBtn');
+    const mediaPreviewContainer = document.getElementById('mediaPreviewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const videoPreview = document.getElementById('videoPreview');
+    const removeMediaBtn = document.getElementById('removeMediaBtn');
+
     let unsubscribeSnapshot = null;
+    let selectedMediaFile = null;
 
     // ==========================================
     // 認証（ログイン・ログアウト）処理
@@ -118,39 +128,106 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 投稿フォームの入力イベント
-    postInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-        const textLength = this.value.length;
+    postInput.addEventListener('input', updatePostBtnState);
+
+    function updatePostBtnState() {
+        postInput.style.height = 'auto';
+        postInput.style.height = (postInput.scrollHeight) + 'px';
+        const textLength = postInput.value.length;
         charCount.textContent = textLength;
-        postBtn.disabled = textLength === 0;
+        // テキストがある、またはメディアが選択されていれば投稿可能
+        postBtn.disabled = textLength === 0 && !selectedMediaFile;
+    }
+
+    // メディア添付ボタンのクリック
+    attachMediaBtn.addEventListener('click', () => {
+        mediaInput.click();
+    });
+
+    // ファイルが選択された時の処理
+    mediaInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        selectedMediaFile = file;
+        const fileUrl = URL.createObjectURL(file);
+
+        mediaPreviewContainer.style.display = 'block';
+
+        if (file.type.startsWith('image/')) {
+            imagePreview.src = fileUrl;
+            imagePreview.style.display = 'block';
+            videoPreview.style.display = 'none';
+        } else if (file.type.startsWith('video/')) {
+            videoPreview.src = fileUrl;
+            videoPreview.style.display = 'block';
+            imagePreview.style.display = 'none';
+        }
+
+        updatePostBtnState();
+    });
+
+    // プレビューの削除ボタン
+    removeMediaBtn.addEventListener('click', () => {
+        selectedMediaFile = null;
+        mediaInput.value = '';
+        mediaPreviewContainer.style.display = 'none';
+        imagePreview.src = '';
+        videoPreview.src = '';
+        updatePostBtnState();
     });
 
     // 投稿ボタンクリック時のデータ保存
     postBtn.addEventListener('click', async () => {
         const text = postInput.value.trim();
-        if (text.length === 0) return;
+        if (text.length === 0 && !selectedMediaFile) return;
 
         postBtn.disabled = true;
         const originalText = postBtn.textContent;
         postBtn.textContent = '送信中...';
 
         try {
+            let mediaUrl = null;
+            let mediaType = null;
+
+            // メディアが選択されている場合はStorageにアップロード
+            if (selectedMediaFile) {
+                postBtn.textContent = 'メディアアップロード中...';
+                const fileExt = selectedMediaFile.name.split('.').pop();
+                const fileName = `posts/${auth.currentUser.uid}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+                const storageRef = storage.ref().child(fileName);
+                
+                await storageRef.put(selectedMediaFile);
+                mediaUrl = await storageRef.getDownloadURL();
+                mediaType = selectedMediaFile.type.startsWith('image/') ? 'image' : 'video';
+            }
+
+            postBtn.textContent = '保存中...';
+
             await db.collection(POSTS_COLLECTION).add({
                 text: text,
+                mediaUrl: mediaUrl,
+                mediaType: mediaType,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                // 将来的に画像投稿やユーザー情報を付加できるように user.uid などを入れておくことも可能
                 userId: auth.currentUser ? auth.currentUser.uid : "unknown"
             });
         } catch (error) {
             console.error("投稿の保存に失敗しました:", error);
-            alert("クラウドへの保存に失敗しました。エラー: " + error.message);
+            alert("投稿に失敗しました。エラー: " + error.message);
         } finally {
             postInput.value = '';
             postInput.style.height = 'auto';
             charCount.textContent = '0';
+            
+            // プレビューのリセット
+            selectedMediaFile = null;
+            mediaInput.value = '';
+            mediaPreviewContainer.style.display = 'none';
+            imagePreview.src = '';
+            videoPreview.src = '';
+
             postBtn.textContent = originalText;
-            postBtn.disabled = true; 
+            updatePostBtnState(); 
         }
     });
 
@@ -173,6 +250,24 @@ document.addEventListener('DOMContentLoaded', () => {
         posts.forEach(post => {
             const postEl = document.createElement('article');
             postEl.className = 'post';
+            
+            let mediaHTML = '';
+            if (post.mediaUrl) {
+                if (post.mediaType === 'video') {
+                    mediaHTML = `
+                        <div class="post-media-container">
+                            <video src="${post.mediaUrl}" class="post-media" controls></video>
+                        </div>
+                    `;
+                } else {
+                    mediaHTML = `
+                        <div class="post-media-container">
+                            <img src="${post.mediaUrl}" class="post-media" alt="投稿画像" loading="lazy">
+                        </div>
+                    `;
+                }
+            }
+
             postEl.innerHTML = `
                 <div class="avatar">
                     <img src="https://ui-avatars.com/api/?name=User&background=random" alt="User Avatar">
@@ -183,7 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="post-username">@myself</span>
                         <span class="post-time">· ${formatTime(post.createdAt)}</span>
                     </div>
-                    <div class="post-text">${escapeHTML(post.text)}</div>
+                    ${post.text ? `<div class="post-text">${escapeHTML(post.text)}</div>` : ''}
+                    ${mediaHTML}
                 </div>
             `;
             timeline.appendChild(postEl);
