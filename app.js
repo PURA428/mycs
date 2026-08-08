@@ -43,8 +43,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalImage = document.getElementById('modalImage');
     const closeImageModalBtn = document.getElementById('closeImageModalBtn');
 
+    // 画面切り替え（SPA）関連の要素
+    const navHome = document.getElementById('navHome');
+    const navDeleted = document.getElementById('navDeleted');
+    const homePage = document.getElementById('homePage');
+    const deletedPage = document.getElementById('deletedPage');
+    const pageTitle = document.getElementById('pageTitle');
+    const deletedTimeline = document.getElementById('deletedTimeline');
+
     let unsubscribeSnapshot = null;
     let selectedMediaFiles = [];
+
+    // ==========================================
+    // 画面切り替え（SPA）処理
+    // ==========================================
+    function switchPage(pageId) {
+        // メニューのactive切り替え
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        homePage.style.display = 'none';
+        deletedPage.style.display = 'none';
+
+        if (pageId === 'home') {
+            navHome.classList.add('active');
+            pageTitle.textContent = 'ホーム';
+            homePage.style.display = 'block';
+        } else if (pageId === 'deleted') {
+            navDeleted.classList.add('active');
+            pageTitle.textContent = 'ゴミ箱 (削除済み)';
+            deletedPage.style.display = 'block';
+        }
+    }
+
+    navHome.addEventListener('click', (e) => { e.preventDefault(); switchPage('home'); });
+    navDeleted.addEventListener('click', (e) => { e.preventDefault(); switchPage('deleted'); });
 
     // ==========================================
     // 認証（ログイン・ログアウト）処理
@@ -119,11 +151,23 @@ document.addEventListener('DOMContentLoaded', () => {
         unsubscribeSnapshot = db.collection(POSTS_COLLECTION)
             .orderBy("createdAt", "desc")
             .onSnapshot((snapshot) => {
-                const posts = [];
+                const activePosts = [];
+                const deletedPosts = [];
+                
                 snapshot.forEach((doc) => {
-                    posts.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    const post = { id: doc.id, ...data };
+                    // 削除フラグで振り分け
+                    if (data.isDeleted) {
+                        deletedPosts.push(post);
+                    } else {
+                        activePosts.push(post);
+                    }
                 });
-                renderTimeline(posts);
+                
+                // ホーム用と削除済み一覧用の描画
+                renderTimeline(activePosts, timeline, false);
+                renderTimeline(deletedPosts, deletedTimeline, true);
             }, (error) => {
                 console.error("データの取得中にエラーが発生しました:", error);
                 timeline.innerHTML = '<div style="padding: 20px; text-align: center; color: #ef4444;">データの読み込みに失敗しました。アクセス権限を確認してください。</div>';
@@ -269,17 +313,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // タイムライン描画関数
-    function renderTimeline(posts) {
-        timeline.innerHTML = '';
+    function renderTimeline(posts, containerEl, isDeletedView) {
+        containerEl.innerHTML = '';
 
         if (posts.length === 0) {
-            timeline.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">まだ投稿はありません。<br>最初のつぶやきを投稿してみましょう！</div>';
+            containerEl.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted);">${isDeletedView ? '削除されたツイートはありません。' : 'まだツイートはありません。<br>最初のつぶやきを投稿してみましょう！'}</div>`;
             return;
         }
 
         posts.forEach(post => {
             const postEl = document.createElement('article');
             postEl.className = 'post';
+            postEl.dataset.id = post.id;
             
             // 互換性対応: 古いデータ(mediaUrl)と新しいデータ(media配列)を吸収
             let mediaItems = [];
@@ -291,14 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let mediaHTML = '';
             if (mediaItems.length > 0) {
-                // 画像枚数に応じたグリッド構成 (最大4枚を想定したデザイン)
                 const gridCount = Math.min(mediaItems.length, 4); 
-                
                 let gridItemsHTML = mediaItems.map(item => {
                     if (item.type === 'video') {
                         return `<div class="grid-item"><video src="${item.url}" controls></video></div>`;
                     } else {
-                        // 画像の場合はクリックイベント用のクラス timeline-image と data-src を付与
                         return `<div class="grid-item"><img src="${item.url}" class="timeline-image" alt="投稿画像" loading="lazy" data-src="${item.url}"></div>`;
                     }
                 }).join('');
@@ -307,6 +349,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="post-media-container">
                         <div class="media-grid" data-count="${gridCount}">
                             ${gridItemsHTML}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 編集済みバッジ
+            let editedBadgeHTML = '';
+            if (post.isEdited) {
+                const editTimeStr = formatTime(post.editedAt);
+                editedBadgeHTML = `<span class="edited-badge" title="最終編集: ${editTimeStr}">（編集済み）</span>`;
+            }
+
+            // 操作メニュー (削除済み画面では表示しない、もしくは自分の投稿のみ表示など。今回は自分の投稿なら表示)
+            let actionMenuHTML = '';
+            const isOwnPost = auth.currentUser && post.userId === auth.currentUser.uid;
+            
+            if (isOwnPost && !isDeletedView) {
+                actionMenuHTML = `
+                    <div class="post-actions-menu">
+                        <button class="menu-btn" onclick="toggleMenu('${post.id}')">⋯</button>
+                        <div class="dropdown-menu" id="menu-${post.id}">
+                            <div class="dropdown-item edit-btn" data-id="${post.id}">編集する</div>
+                            <div class="dropdown-item delete-item delete-btn" data-id="${post.id}">削除する</div>
                         </div>
                     </div>
                 `;
@@ -321,16 +386,109 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="post-name">ユーザー名</span>
                         <span class="post-username">@myself</span>
                         <span class="post-time">· ${formatTime(post.createdAt)}</span>
+                        ${editedBadgeHTML}
                     </div>
-                    ${post.text ? `<div class="post-text">${escapeHTML(post.text)}</div>` : ''}
+                    ${post.text ? `<div class="post-text" id="text-${post.id}">${escapeHTML(post.text)}</div>` : ''}
                     ${mediaHTML}
                 </div>
+                ${actionMenuHTML}
             `;
-            timeline.appendChild(postEl);
+            containerEl.appendChild(postEl);
+        });
+
+        // ドロップダウンメニューの開閉関数（グローバルに設定）
+        window.toggleMenu = function(postId) {
+            // 他のメニューを閉じる
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                if (menu.id !== `menu-${postId}`) menu.classList.remove('show');
+            });
+            const menu = document.getElementById(`menu-${postId}`);
+            if (menu) menu.classList.toggle('show');
+        };
+
+        // 画面のどこかをクリックしたらメニューを閉じる
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.post-actions-menu')) {
+                document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+
+        // 削除ボタンのイベント
+        containerEl.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const postId = e.target.getAttribute('data-id');
+                if (confirm('このツイートを削除しますか？（ゴミ箱に移動します）')) {
+                    try {
+                        await db.collection(POSTS_COLLECTION).doc(postId).update({
+                            isDeleted: true,
+                            deletedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    } catch (err) {
+                        console.error('削除エラー:', err);
+                        alert('削除に失敗しました。');
+                    }
+                }
+            });
+        });
+
+        // 編集ボタンのイベント
+        containerEl.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const postId = e.target.getAttribute('data-id');
+                const textEl = document.getElementById(`text-${postId}`);
+                if (!textEl) return;
+
+                // メニューを閉じる
+                document.getElementById(`menu-${postId}`).classList.remove('show');
+
+                const currentText = textEl.innerText || textEl.textContent; // 元のテキスト
+                
+                // 編集フォームに置換
+                const editFormHTML = `
+                    <textarea id="edit-input-${postId}" class="edit-textarea">${currentText}</textarea>
+                    <div class="edit-actions">
+                        <button class="btn-small btn-cancel" id="cancel-edit-${postId}">キャンセル</button>
+                        <button class="btn-small btn-save" id="save-edit-${postId}">保存</button>
+                    </div>
+                `;
+                textEl.outerHTML = `<div class="edit-container" id="edit-container-${postId}">${editFormHTML}</div>`;
+
+                // キャンセル処理（再描画させるためにFirestoreから取り直すか、単に元のHTMLに戻す）
+                document.getElementById(`cancel-edit-${postId}`).addEventListener('click', () => {
+                    // 簡単な方法は、タイムライン自体を再描画（あるいは対象のドキュメントだけ再描画）することですが、
+                    // スナップショットが常に走っているので、元のDOMを復元すればOK（リアルタイム同期で直る）
+                    const container = document.getElementById(`edit-container-${postId}`);
+                    container.outerHTML = `<div class="post-text" id="text-${postId}">${escapeHTML(currentText)}</div>`;
+                });
+
+                // 保存処理
+                document.getElementById(`save-edit-${postId}`).addEventListener('click', async () => {
+                    const newText = document.getElementById(`edit-input-${postId}`).value.trim();
+                    const saveBtn = document.getElementById(`save-edit-${postId}`);
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = '保存中...';
+
+                    try {
+                        await db.collection(POSTS_COLLECTION).doc(postId).update({
+                            text: newText,
+                            isEdited: true,
+                            editedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        // updateが成功すると、onSnapshotが発火して自動で画面が再描画されます
+                    } catch (err) {
+                        console.error('編集エラー:', err);
+                        alert('編集の保存に失敗しました。');
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = '保存';
+                    }
+                });
+            });
         });
 
         // 画像クリックイベント（拡大プレビュー表示）の登録
-        const timelineImages = timeline.querySelectorAll('.timeline-image');
+        const timelineImages = containerEl.querySelectorAll('.timeline-image');
         timelineImages.forEach(img => {
             img.addEventListener('click', (e) => {
                 const src = e.target.getAttribute('data-src');
