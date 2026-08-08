@@ -36,12 +36,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const mediaInput = document.getElementById('mediaInput');
     const attachMediaBtn = document.getElementById('attachMediaBtn');
     const mediaPreviewContainer = document.getElementById('mediaPreviewContainer');
-    const imagePreview = document.getElementById('imagePreview');
-    const videoPreview = document.getElementById('videoPreview');
-    const removeMediaBtn = document.getElementById('removeMediaBtn');
+    const mediaPreviewGrid = document.getElementById('mediaPreviewGrid');
+    
+    // モーダル関連の要素
+    const imageModal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const closeImageModalBtn = document.getElementById('closeImageModalBtn');
 
     let unsubscribeSnapshot = null;
-    let selectedMediaFile = null;
+    let selectedMediaFiles = [];
 
     // ==========================================
     // 認証（ログイン・ログアウト）処理
@@ -136,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textLength = postInput.value.length;
         charCount.textContent = textLength;
         // テキストがある、またはメディアが選択されていれば投稿可能
-        postBtn.disabled = textLength === 0 && !selectedMediaFile;
+        postBtn.disabled = textLength === 0 && selectedMediaFiles.length === 0;
     }
 
     // メディア添付ボタンのクリック
@@ -146,68 +149,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ファイルが選択された時の処理
     mediaInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
 
-        selectedMediaFile = file;
-        const fileUrl = URL.createObjectURL(file);
+        // 最大4枚までの制限（X風に合わせる場合）
+        const newFiles = files.slice(0, 4 - selectedMediaFiles.length);
+        selectedMediaFiles = [...selectedMediaFiles, ...newFiles].slice(0, 4);
+        
+        renderMediaPreview();
+        updatePostBtnState();
+        
+        // 連続して同じファイルを選べるようにリセット
+        mediaInput.value = '';
+    });
 
-        mediaPreviewContainer.style.display = 'block';
-
-        if (file.type.startsWith('image/')) {
-            imagePreview.src = fileUrl;
-            imagePreview.style.display = 'block';
-            videoPreview.style.display = 'none';
-        } else if (file.type.startsWith('video/')) {
-            videoPreview.src = fileUrl;
-            videoPreview.style.display = 'block';
-            imagePreview.style.display = 'none';
+    // プレビューの描画処理
+    function renderMediaPreview() {
+        mediaPreviewGrid.innerHTML = '';
+        if (selectedMediaFiles.length === 0) {
+            mediaPreviewContainer.style.display = 'none';
+            return;
         }
 
-        updatePostBtnState();
-    });
+        mediaPreviewContainer.style.display = 'block';
+        
+        selectedMediaFiles.forEach((file, index) => {
+            const fileUrl = URL.createObjectURL(file);
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'media-preview-item';
+            
+            let mediaEl = '';
+            if (file.type.startsWith('image/')) {
+                mediaEl = `<img src="${fileUrl}" alt="プレビュー" />`;
+            } else if (file.type.startsWith('video/')) {
+                mediaEl = `<video src="${fileUrl}" controls></video>`;
+            }
+            
+            itemDiv.innerHTML = `
+                ${mediaEl}
+                <button class="remove-media-btn" data-index="${index}" title="削除">×</button>
+            `;
+            mediaPreviewGrid.appendChild(itemDiv);
+        });
 
-    // プレビューの削除ボタン
-    removeMediaBtn.addEventListener('click', () => {
-        selectedMediaFile = null;
-        mediaInput.value = '';
-        mediaPreviewContainer.style.display = 'none';
-        imagePreview.src = '';
-        videoPreview.src = '';
-        updatePostBtnState();
-    });
+        // 削除ボタンにイベントを設定
+        const removeBtns = mediaPreviewGrid.querySelectorAll('.remove-media-btn');
+        removeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.getAttribute('data-index'), 10);
+                selectedMediaFiles.splice(idx, 1);
+                renderMediaPreview();
+                updatePostBtnState();
+            });
+        });
+    }
 
     // 投稿ボタンクリック時のデータ保存
     postBtn.addEventListener('click', async () => {
         const text = postInput.value.trim();
-        if (text.length === 0 && !selectedMediaFile) return;
+        if (text.length === 0 && selectedMediaFiles.length === 0) return;
 
         postBtn.disabled = true;
         const originalText = postBtn.textContent;
         postBtn.textContent = '送信中...';
 
         try {
-            let mediaUrl = null;
-            let mediaType = null;
+            let mediaArray = [];
 
             // メディアが選択されている場合はStorageにアップロード
-            if (selectedMediaFile) {
-                postBtn.textContent = 'メディアアップロード中...';
-                const fileExt = selectedMediaFile.name.split('.').pop();
-                const fileName = `posts/${auth.currentUser.uid}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-                const storageRef = storage.ref().child(fileName);
+            if (selectedMediaFiles.length > 0) {
+                postBtn.textContent = `メディアアップロード中...`;
                 
-                await storageRef.put(selectedMediaFile);
-                mediaUrl = await storageRef.getDownloadURL();
-                mediaType = selectedMediaFile.type.startsWith('image/') ? 'image' : 'video';
+                const uploadPromises = selectedMediaFiles.map(async (file, index) => {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `posts/${auth.currentUser.uid}/${Date.now()}_${index}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+                    const storageRef = storage.ref().child(fileName);
+                    
+                    await storageRef.put(file);
+                    const url = await storageRef.getDownloadURL();
+                    const type = file.type.startsWith('image/') ? 'image' : 'video';
+                    
+                    return { url, type };
+                });
+
+                // すべての画像を並行してアップロード
+                mediaArray = await Promise.all(uploadPromises);
             }
 
             postBtn.textContent = '保存中...';
 
             await db.collection(POSTS_COLLECTION).add({
                 text: text,
-                mediaUrl: mediaUrl,
-                mediaType: mediaType,
+                media: mediaArray, // 複数メディアを配列で保存
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 userId: auth.currentUser ? auth.currentUser.uid : "unknown"
             });
@@ -220,11 +253,8 @@ document.addEventListener('DOMContentLoaded', () => {
             charCount.textContent = '0';
             
             // プレビューのリセット
-            selectedMediaFile = null;
-            mediaInput.value = '';
-            mediaPreviewContainer.style.display = 'none';
-            imagePreview.src = '';
-            videoPreview.src = '';
+            selectedMediaFiles = [];
+            renderMediaPreview();
 
             postBtn.textContent = originalText;
             updatePostBtnState(); 
@@ -251,21 +281,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const postEl = document.createElement('article');
             postEl.className = 'post';
             
+            // 互換性対応: 古いデータ(mediaUrl)と新しいデータ(media配列)を吸収
+            let mediaItems = [];
+            if (post.media && Array.isArray(post.media)) {
+                mediaItems = post.media;
+            } else if (post.mediaUrl) {
+                mediaItems = [{ url: post.mediaUrl, type: post.mediaType || 'image' }];
+            }
+            
             let mediaHTML = '';
-            if (post.mediaUrl) {
-                if (post.mediaType === 'video') {
-                    mediaHTML = `
-                        <div class="post-media-container">
-                            <video src="${post.mediaUrl}" class="post-media" controls></video>
+            if (mediaItems.length > 0) {
+                // 画像枚数に応じたグリッド構成 (最大4枚を想定したデザイン)
+                const gridCount = Math.min(mediaItems.length, 4); 
+                
+                let gridItemsHTML = mediaItems.map(item => {
+                    if (item.type === 'video') {
+                        return `<div class="grid-item"><video src="${item.url}" controls></video></div>`;
+                    } else {
+                        // 画像の場合はクリックイベント用のクラス timeline-image と data-src を付与
+                        return `<div class="grid-item"><img src="${item.url}" class="timeline-image" alt="投稿画像" loading="lazy" data-src="${item.url}"></div>`;
+                    }
+                }).join('');
+
+                mediaHTML = `
+                    <div class="post-media-container">
+                        <div class="media-grid" data-count="${gridCount}">
+                            ${gridItemsHTML}
                         </div>
-                    `;
-                } else {
-                    mediaHTML = `
-                        <div class="post-media-container">
-                            <img src="${post.mediaUrl}" class="post-media" alt="投稿画像" loading="lazy">
-                        </div>
-                    `;
-                }
+                    </div>
+                `;
             }
 
             postEl.innerHTML = `
@@ -284,7 +328,39 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             timeline.appendChild(postEl);
         });
+
+        // 画像クリックイベント（拡大プレビュー表示）の登録
+        const timelineImages = timeline.querySelectorAll('.timeline-image');
+        timelineImages.forEach(img => {
+            img.addEventListener('click', (e) => {
+                const src = e.target.getAttribute('data-src');
+                openImageModal(src);
+            });
+        });
     }
+
+    // 画像モーダルの開閉処理
+    function openImageModal(src) {
+        modalImage.src = src;
+        imageModal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // 背景のスクロールを防止
+    }
+
+    function closeImageModal() {
+        imageModal.classList.remove('show');
+        document.body.style.overflow = '';
+        setTimeout(() => {
+            modalImage.src = '';
+        }, 250); // アニメーション終了後に画像を消す
+    }
+
+    closeImageModalBtn.addEventListener('click', closeImageModal);
+    imageModal.addEventListener('click', (e) => {
+        // 画像領域以外（背景）をクリックした場合のみ閉じる
+        if (e.target === imageModal) {
+            closeImageModal();
+        }
+    });
 
     // XSS対策
     function escapeHTML(str) {
