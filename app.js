@@ -613,11 +613,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 loadedZip = await JSZip.loadAsync(file);
-                const tweetsFile = loadedZip.file("data/tweets.js");
-                if (!tweetsFile) {
+                const tweetsFiles = loadedZip.file(/data\/tweets\.js$/);
+                if (!tweetsFiles || tweetsFiles.length === 0) {
                     alert("ZIP内に data/tweets.js が見つかりません。");
                     return;
                 }
+                const tweetsFile = tweetsFiles[0];
 
                 const content = await tweetsFile.async("string");
                 const jsonString = content.replace(/^window\.YTD\.tweets\.part0\s*=\s*/, '');
