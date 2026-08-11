@@ -621,7 +621,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tweetsFile = tweetsFiles[0];
 
                 const content = await tweetsFile.async("string");
-                const jsonString = content.replace(/^window\.YTD\.tweets\.part0\s*=\s*/, '');
+                
+                // BOMや空白などを回避するため、最初の '[' から抽出する
+                const startIndex = content.indexOf('[');
+                if (startIndex === -1) throw new Error("JSON配列が見つかりません");
+                const jsonString = content.substring(startIndex);
                 parsedTweets = JSON.parse(jsonString);
 
                 const yearMonths = new Set();
@@ -642,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 importOptions.style.display = 'block';
             } catch (error) {
                 console.error("ZIP読み込みエラー", error);
-                alert("ファイルの読み込みに失敗しました。");
+                alert("ファイルの読み込みに失敗しました。\n詳細: " + error.message);
             }
         });
     }
